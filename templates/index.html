@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Crypto Portfolio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta http-equiv="refresh" content="300">
+</head>
+<body>
+    <div class="container">
+        <h1>My Crypto Portfolio</h1>
+        <div class="total-value-box">
+            <h2>Total Portfolio Value</h2>
+            <p>${{ '{:,.2f}'.format(total_value) }}</p>
+        </div>
+
+        <div class="controls">
+            <label class="switch">
+                <input type="checkbox" id="show-small-balances">
+                <span class="slider round"></span>
+            </label>
+            <span>Show Balances &lt; $10.00</span>
+        </div>
+
+        {% for exchange, data in exchanges_data.items() %}
+            <div class="exchange-card">
+                <div class="exchange-header">
+                    <h2>{{ exchange }}</h2>
+                    <span class="exchange-total">${{ '{:,.2f}'.format(data.total_value) }}</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Amount</th>
+                            <th>Price (USD)</th>
+                            <th>Value (USD)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asset in data.assets %}
+                            <tr data-value="{{ asset.value }}">
+                                <td>{{ asset.asset }} <span class="original-asset">({{ asset.original_asset }})</span></td>
+                                <td>{{ '{:,.8f}'.format(asset.amount) }}</td>
+                                <td>${{ '{:,.4f}'.format(asset.price) }}</td>
+                                <td>${{ '{:,.2f}'.format(asset.value) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endfor %}
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggle = document.getElementById('show-small-balances');
+
+            function filterRows() {
+                const showSmall = toggle.checked;
+                document.querySelectorAll('tbody tr').forEach(row => {
+                    const value = parseFloat(row.dataset.value);
+                    if (!showSmall && value < 10.0) {
+                        row.classList.add('hidden-row');
+                    } else {
+                        row.classList.remove('hidden-row');
+                    }
+                });
+            }
+
+            toggle.addEventListener('change', filterRows);
+            // Initial filter on page load
+            filterRows();
+        });
+    </script>
+</body>
+</html>
