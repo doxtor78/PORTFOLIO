@@ -13,8 +13,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.path.append(os.path.join(os.path.dirname(__file__), 'scripts'))
 
 # Import balance fetching functions from scripts
-from binance_balances import get_binance_balances
-from bybit_balances import get_bybit_balances, get_bybit_funding_balances
+from binance_balances import get_all_binance_balances
+from bybit_balances import get_all_bybit_balances
 # from bitstamp_balances import get_bitstamp_balances # Removed problematic import
 from kraken_balances import get_kraken_balances, get_prices as get_cmc_prices
 from bitmex_balances import get_bitmex_balances
@@ -92,6 +92,28 @@ def display_portfolio(all_assets):
     print(f"Total Portfolio Value: ${total_value:,.2f}".center(80))
     print("-" * 80)
 
+    # --- Asset Sums Section ---
+    # Define major assets and stablecoins
+    MAJOR_ASSETS = ['BTC', 'ETH', 'BNB']
+    STABLECOINS = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FDUSD', 'USD', 'UST']
+    asset_sums = {}
+    stablecoin_sum = 0.0
+    for asset in all_assets:
+        symbol = asset.get('asset')
+        amount = asset.get('amount', 0.0)
+        if symbol in MAJOR_ASSETS:
+            asset_sums[symbol] = asset_sums.get(symbol, 0.0) + amount
+        elif symbol in STABLECOINS:
+            stablecoin_sum += amount
+    print("\n" + "="*80)
+    print("--- Asset Sums Across All Exchanges ---".center(80))
+    print("="*80)
+    for symbol in MAJOR_ASSETS:
+        if symbol in asset_sums:
+            print(f"Total {symbol}: {asset_sums[symbol]:,.8f}")
+    print(f"Total Stablecoins (USD, USDT, USDC, etc.): {stablecoin_sum:,.8f}")
+    print("="*80)
+
 
 def main():
     """
@@ -102,8 +124,8 @@ def main():
         return lambda: func(key, secret)
 
     exchange_functions = {
-        "Binance": with_keys(get_binance_balances, BINANCE_API_KEY, BINANCE_API_SECRET),
-        "Bybit": with_keys(get_bybit_balances, BYBIT_API_KEY, BYBIT_API_SECRET),
+        "Binance": with_keys(get_all_binance_balances, BINANCE_API_KEY, BINANCE_API_SECRET),
+        "Bybit": with_keys(get_all_bybit_balances, BYBIT_API_KEY, BYBIT_API_SECRET),
         "Bitstamp": get_bitstamp_balances,
         "Kraken": get_kraken_balances,
         "Bitfinex": with_keys(get_bitfinex_balances, BITFINEX_API_KEY, BITFINEX_API_SECRET),
