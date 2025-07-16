@@ -1,11 +1,6 @@
 import sys
 import os
-import pandas as pd
 from dotenv import load_dotenv
-import requests
-import time
-import hmac
-import hashlib
 from tabulate import tabulate
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -15,7 +10,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'scripts'))
 # Import balance fetching functions from scripts
 from binance_balances import get_all_binance_balances
 from bybit_balances import get_all_bybit_balances
-# from bitstamp_balances import get_bitstamp_balances # Removed problematic import
 from kraken_balances import get_kraken_balances, get_prices as get_cmc_prices
 from bitmex_balances import get_bitmex_balances
 from bitfinex_balances import get_bitfinex_balances
@@ -29,6 +23,11 @@ BYBIT_API_KEY = '3hqwkcMjnyhnFUd6XE'
 BYBIT_API_SECRET = 'OQVX53FdiY4LMztOZAzYxD3UjS93mFpV3XfK'
 BITFINEX_API_KEY = 'cbb2e86f32e6b4256478f1d38bd8e88d725e6312940'
 BITFINEX_API_SECRET = '171522474c91db9e7b144528d6cd82ffc10a4603114'
+
+# --- Asset Groups (Consolidated) ---
+BTC_GROUP = ['BTC', 'XBT']
+STABLECOIN_GROUP = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FDUSD', 'USD', 'UST']
+MAJOR_ASSETS = ['BTC', 'ETH', 'BNB']
 
 # The get_all_balances function is removed as its logic is now in main.
 
@@ -45,9 +44,6 @@ def display_portfolio(all_assets):
     if not valuable_assets:
         print("No assets with a value greater than $0.01 found.")
         return
-
-    BTC_GROUP = ['BTC', 'XBT']
-    STABLECOIN_GROUP = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FDUSD', 'USD', 'UST']
 
     def get_sort_key(asset):
         asset_name = asset.get('asset')
@@ -93,17 +89,19 @@ def display_portfolio(all_assets):
     print("-" * 80)
 
     # --- Asset Sums Section ---
-    # Define major assets and stablecoins
-    MAJOR_ASSETS = ['BTC', 'ETH', 'BNB']
-    STABLECOINS = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'FDUSD', 'USD', 'UST']
     asset_sums = {}
     stablecoin_sum = 0.0
+    # Calculate BTC sum for all exchanges except BitMEX
+    btc_other_sum = 0.0
     for asset in all_assets:
         symbol = asset.get('asset')
         amount = asset.get('amount', 0.0)
+        exchange = asset.get('exchange', '')
+        if symbol == 'BTC' and exchange != 'BitMEX':
+            btc_other_sum += amount
         if symbol in MAJOR_ASSETS:
             asset_sums[symbol] = asset_sums.get(symbol, 0.0) + amount
-        elif symbol in STABLECOINS:
+        elif symbol in STABLECOIN_GROUP:
             stablecoin_sum += amount
     print("\n" + "="*80)
     print("--- Asset Sums Across All Exchanges ---".center(80))
@@ -111,6 +109,8 @@ def display_portfolio(all_assets):
     for symbol in MAJOR_ASSETS:
         if symbol in asset_sums:
             print(f"Total {symbol}: {asset_sums[symbol]:,.8f}")
+            if symbol == 'BTC':
+                print(f"Total other BTC (excluding BitMEX): {btc_other_sum:,.8f}")
     print(f"Total Stablecoins (USD, USDT, USDC, etc.): {stablecoin_sum:,.8f}")
     print("="*80)
 
@@ -163,12 +163,10 @@ def main():
     all_assets = []
     for asset in raw_assets:
         price = prices.get(asset['asset'], 0.0)
-        if price is None: # Ensure price is not None
+        if price is None:
             price = 0.0
-        
         amount = asset.get('amount', 0.0)
         value = amount * price
-        
         asset['price'] = price
         asset['value'] = value
         all_assets.append(asset)
